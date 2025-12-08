@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'home.dart';
-import 'doa_list.dart';
-import 'artikel_list.dart';
-import 'chatbot.dart';
-import 'profile_page.dart';
+import 'home/home.dart';
+import 'doa/doa_list.dart';
+import 'artikel/artikel_list.dart';
+import 'chatbot/chatbot.dart';
+import 'profile/profile_page.dart';
 
 class UserHomePage extends StatefulWidget {
   final VoidCallback toggleTheme;

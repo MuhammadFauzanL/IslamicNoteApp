@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../notifications.dart'; // import file notifications.dart
+import '../../core/notifications.dart'; // import file notifications.dart
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});

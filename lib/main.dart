@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
-import 'pages/profile_page.dart';
+import 'pages/profile/profile_page.dart';
 import 'pages/user_home.dart';
-import 'pages/home.dart';
-import 'pages/doa_list.dart';
-import 'pages/doa_detail.dart';
-import 'pages/artikel_list.dart';
-import 'pages/artikel_detail.dart';
-import 'pages/chatbot.dart';
+import 'pages/home/home.dart';
+import 'pages/doa/doa_list.dart';
+import 'pages/doa/doa_detail.dart';
+import 'pages/artikel/artikel_list.dart';
+import 'pages/artikel/artikel_detail.dart';
+import 'pages/chatbot/chatbot.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
