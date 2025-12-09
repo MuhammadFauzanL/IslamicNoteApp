@@ -18,7 +18,6 @@ Future<void> initializeNotifications() async {
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 }
 
-// Fungsi untuk scheduling notifikasi waktu sholat
 Future<void> schedulePrayerNotification({
   required int id,
   required String title,
@@ -46,7 +45,6 @@ Future<void> schedulePrayerNotification({
   );
 }
 
-// Contoh jadwalkan semua notifikasi sholat (contoh waktu tetap)
 Future<void> scheduleAllPrayerNotifications() async {
   final now = tz.TZDateTime.now(tz.local);
 
@@ -62,7 +60,6 @@ Future<void> scheduleAllPrayerNotifications() async {
   for (final prayer in prayers.entries) {
     tz.TZDateTime scheduledTime = prayer.value;
 
-    // Jika waktu sudah lewat hari ini, jadwalkan untuk besok
     if (scheduledTime.isBefore(now)) {
       scheduledTime = scheduledTime.add(const Duration(days: 1));
     }
@@ -77,7 +74,6 @@ Future<void> scheduleAllPrayerNotifications() async {
   }
 }
 
-// Tes langsung kirim notif sekarang
 Future<void> showPrayerReminderNotification(String prayerName) async {
   await flutterLocalNotificationsPlugin.show(
     999,

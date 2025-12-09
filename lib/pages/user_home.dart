@@ -24,6 +24,11 @@ class _UserHomePageState extends State<UserHomePage> {
 
   late final List<Widget> _pages;
 
+  final Color darkBgColor = const Color(0xFF222831);
+  final Color darkAppBarColor = const Color(0xFF393E46);
+  final Color accentColor = const Color(0xFF00ADB5);
+  final Color lightBgColor = const Color(0xFFEEEEEE);
+
   @override
   void initState() {
     super.initState();
@@ -32,24 +37,29 @@ class _UserHomePageState extends State<UserHomePage> {
       DoaListPage(),
       ArtikelListPage(),
       const ChatbotPage(),
-      ProfilePage(), 
+      ProfilePage(),
     ];
   }
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = widget.isDarkMode;
+
     return Scaffold(
+      backgroundColor: isDark ? darkBgColor : lightBgColor,
       appBar: AppBar(
+        backgroundColor: isDark ? darkAppBarColor : accentColor,
         title: const Text('Islamic Note App'),
         actions: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
             child: Row(
               children: [
-                const Icon(Icons.dark_mode),
+                Icon(isDark ? Icons.dark_mode : Icons.light_mode),
                 Switch(
-                  value: widget.isDarkMode,
+                  value: isDark,
                   onChanged: (_) => widget.toggleTheme(),
+                  activeColor: accentColor,
                 ),
               ],
             ),
@@ -61,8 +71,12 @@ class _UserHomePageState extends State<UserHomePage> {
         children: _pages,
       ),
       bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: isDark ? darkBgColor : lightBgColor,
+        selectedItemColor: accentColor,
+        unselectedItemColor: isDark ? const Color(0xFFEEEEEE) : Colors.black54,
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
           BottomNavigationBarItem(icon: Icon(Icons.book), label: "Doa"),
