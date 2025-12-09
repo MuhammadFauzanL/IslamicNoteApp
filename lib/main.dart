@@ -73,7 +73,7 @@ class _IslamicNoteAppState extends State<IslamicNoteApp> {
       routes: {
         '/home': (context) => const HomePage(),
         '/doa_list': (context) => DoaListPage(),
-        '/doa_detail': (context) => const DoaDetailPage(),
+        '/doa_detail': (context) => DoaDetailPage(), 
         '/artikel_list': (context) => ArtikelListPage(),
         '/artikel_detail': (context) => const ArtikelDetailPage(),
         '/chatbot': (context) => const ChatbotPage(),
