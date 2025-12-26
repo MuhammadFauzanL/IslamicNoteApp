@@ -53,6 +53,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Chatbot Doa'),
+        automaticallyImplyLeading: false,
       ),
       body: Column(
         children: [

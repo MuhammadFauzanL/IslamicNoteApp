@@ -21,25 +21,46 @@ class UserHomePage extends StatefulWidget {
 
 class _UserHomePageState extends State<UserHomePage> {
   int _currentIndex = 0;
-
-  late final List<Widget> _pages;
+  // Keys to force rebuild when switching tabs
+  Key _doaKey = UniqueKey();
+  Key _artikelKey = UniqueKey();
 
   final Color darkBgColor = const Color(0xFF222831);
   final Color darkAppBarColor = const Color(0xFF393E46);
   final Color accentColor = const Color(0xFF00ADB5);
   final Color lightBgColor = const Color(0xFFEEEEEE);
 
-  @override
-  void initState() {
-    super.initState();
-    _pages = [
-      const HomePage(),
-      DoaListPage(),
-      ArtikelListPage(),
-      const ChatbotPage(),
-      ProfilePage(),
-    ];
+  void _switchTab(int index) {
+    setState(() {
+      _currentIndex = index;
+      // Refresh keys to force admin check
+      _doaKey = UniqueKey();
+      _artikelKey = UniqueKey();
+    });
   }
+
+  void _onTabTapped(int index) {
+    setState(() {
+      _currentIndex = index;
+      // Refresh keys when manually switching tabs
+      if (index == 1) _doaKey = UniqueKey();
+      if (index == 2) _artikelKey = UniqueKey();
+    });
+  }
+
+  List<Widget> get _pages => [
+        HomePage(
+          isDarkMode: widget.isDarkMode,
+          onTabChange: _switchTab,
+        ),
+        DoaListPage(key: _doaKey),
+        ArtikelListPage(key: _artikelKey),
+        const ChatbotPage(),
+        ProfilePage(
+          toggleTheme: widget.toggleTheme,
+          isDarkMode: widget.isDarkMode,
+        ),
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -47,25 +68,6 @@ class _UserHomePageState extends State<UserHomePage> {
 
     return Scaffold(
       backgroundColor: isDark ? darkBgColor : lightBgColor,
-      appBar: AppBar(
-        backgroundColor: isDark ? darkAppBarColor : accentColor,
-        title: const Text('Islamic Note App'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            child: Row(
-              children: [
-                Icon(isDark ? Icons.dark_mode : Icons.light_mode),
-                Switch(
-                  value: isDark,
-                  onChanged: (_) => widget.toggleTheme(),
-                  activeColor: accentColor,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
       body: IndexedStack(
         index: _currentIndex,
         children: _pages,
@@ -75,7 +77,7 @@ class _UserHomePageState extends State<UserHomePage> {
         selectedItemColor: accentColor,
         unselectedItemColor: isDark ? const Color(0xFFEEEEEE) : Colors.black54,
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: _onTabTapped,
         type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),

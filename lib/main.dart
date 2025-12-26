@@ -3,10 +3,12 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'pages/profile/profile_page.dart';
 import 'pages/user_home.dart';
-import 'pages/home/home.dart';
 import 'pages/doa/doa_list.dart';
 import 'pages/artikel/artikel_list.dart';
 import 'pages/chatbot/chatbot.dart';
+import 'pages/auth/login_page.dart';
+import 'pages/auth/register_page.dart';
+import 'pages/splash_screen.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -110,12 +112,19 @@ class _IslamicNoteAppState extends State<IslamicNoteApp> {
         ),
       ),
       themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
-      home: UserHomePage(
-        toggleTheme: toggleTheme,
-        isDarkMode: _isDarkMode,
+      home: SplashScreen(
+        child: UserHomePage(
+          toggleTheme: toggleTheme,
+          isDarkMode: _isDarkMode,
+        ),
       ),
       routes: {
-        '/home': (context) => const HomePage(),
+        '/home': (context) => UserHomePage(
+              toggleTheme: toggleTheme,
+              isDarkMode: _isDarkMode,
+            ),
+        '/login': (context) => const LoginPage(),
+        '/register': (context) => const RegisterPage(),
         '/doa_list': (context) => DoaListPage(),
         '/artikel_list': (context) => ArtikelListPage(),
         '/chatbot': (context) => const ChatbotPage(),
