@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+
 import 'home/home.dart';
 import 'doa/doa_list.dart';
 import 'artikel/artikel_list.dart';
 import 'chatbot/chatbot.dart';
 import 'profile/profile_page.dart';
+import '../services/auth_service.dart';
 
 class UserHomePage extends StatefulWidget {
   final VoidCallback toggleTheme;
@@ -16,38 +18,22 @@ class UserHomePage extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _UserHomePageState createState() => _UserHomePageState();
+  State<UserHomePage> createState() => _UserHomePageState();
 }
 
 class _UserHomePageState extends State<UserHomePage> {
   int _currentIndex = 0;
-  // Keys to force rebuild when switching tabs
+
   Key _doaKey = UniqueKey();
   Key _artikelKey = UniqueKey();
 
   final Color darkBgColor = const Color(0xFF222831);
-  final Color darkAppBarColor = const Color(0xFF393E46);
-  final Color accentColor = const Color(0xFF00ADB5);
   final Color lightBgColor = const Color(0xFFEEEEEE);
+  final Color accentColor = const Color(0xFF00ADB5);
 
-  void _switchTab(int index) {
-    setState(() {
-      _currentIndex = index;
-      // Refresh keys to force admin check
-      _doaKey = UniqueKey();
-      _artikelKey = UniqueKey();
-    });
-  }
-
-  void _onTabTapped(int index) {
-    setState(() {
-      _currentIndex = index;
-      // Refresh keys when manually switching tabs
-      if (index == 1) _doaKey = UniqueKey();
-      if (index == 2) _artikelKey = UniqueKey();
-    });
-  }
-
+  // =========================
+  // PAGES (CHATBOT TIDAK DI SINI)
+  // =========================
   List<Widget> get _pages => [
         HomePage(
           isDarkMode: widget.isDarkMode,
@@ -55,13 +41,81 @@ class _UserHomePageState extends State<UserHomePage> {
         ),
         DoaListPage(key: _doaKey),
         ArtikelListPage(key: _artikelKey),
-        const ChatbotPage(),
+
+        // ⛔ INDEX 3 DIKOSONGKAN (CHATBOT VIA NAVIGATOR)
+        const SizedBox.shrink(),
+
         ProfilePage(
           toggleTheme: widget.toggleTheme,
           isDarkMode: widget.isDarkMode,
         ),
       ];
 
+  // =========================
+  // SWITCH TAB (HOME BUTTON)
+  // =========================
+  void _switchTab(int index) {
+    setState(() {
+      _currentIndex = index;
+      if (index == 1) _doaKey = UniqueKey();
+      if (index == 2) _artikelKey = UniqueKey();
+    });
+  }
+
+  // =========================
+  // BOTTOM NAV HANDLER
+  // =========================
+  Future<void> _onTabTapped(int index) async {
+    // ================= CHATBOT =================
+    if (index == 3) {
+      final loggedIn = await AuthService.isLoggedIn();
+      if (!mounted) return;
+
+      // 🔒 BELUM LOGIN
+      if (!loggedIn) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Untuk mencoba chatbot, silakan login terlebih dahulu',
+            ),
+          ),
+        );
+
+        final result = await Navigator.pushNamed(context, '/login');
+
+        // ✅ LOGIN BERHASIL → BUKA CHATBOT
+        if (result == true && mounted) {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const ChatbotPage(),
+            ),
+          );
+        }
+
+        return;
+      }
+
+      // ✅ SUDAH LOGIN → LANGSUNG CHATBOT
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const ChatbotPage(),
+        ),
+      );
+
+      return;
+    }
+
+    // ================= TAB NORMAL =================
+    setState(() {
+      _currentIndex = index;
+    });
+  }
+
+  // =========================
+  // BUILD
+  // =========================
   @override
   Widget build(BuildContext context) {
     final bool isDark = widget.isDarkMode;
@@ -75,16 +129,32 @@ class _UserHomePageState extends State<UserHomePage> {
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: isDark ? darkBgColor : lightBgColor,
         selectedItemColor: accentColor,
-        unselectedItemColor: isDark ? const Color(0xFFEEEEEE) : Colors.black54,
+        unselectedItemColor:
+            isDark ? const Color(0xFFEEEEEE) : Colors.black54,
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
         type: BottomNavigationBarType.fixed,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(icon: Icon(Icons.book), label: "Doa"),
-          BottomNavigationBarItem(icon: Icon(Icons.article), label: "Artikel"),
-          BottomNavigationBarItem(icon: Icon(Icons.chat), label: "Chatbot"),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profil"),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: "Home",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.book),
+            label: "Doa",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.article),
+            label: "Artikel",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat),
+            label: "Chatbot",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: "Profil",
+          ),
         ],
       ),
     );

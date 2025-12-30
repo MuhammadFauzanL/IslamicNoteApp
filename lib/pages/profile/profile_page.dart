@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../models/user_model.dart';
+import '../../core/auth_state.dart'; // ✅ TAMBAHAN (GLOBAL AUTH NOTIFIER)
 
 class ProfilePage extends StatefulWidget {
   final VoidCallback? toggleTheme;
@@ -22,6 +23,21 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     _checkAuthStatus();
+
+    // ✅ TAMBAHAN: DENGARKAN PERUBAHAN LOGIN GLOBAL
+    authStateNotifier.addListener(_onAuthChanged);
+  }
+
+  @override
+  void dispose() {
+    // ✅ TAMBAHAN: BERSIHKAN LISTENER
+    authStateNotifier.removeListener(_onAuthChanged);
+    super.dispose();
+  }
+
+  // ✅ TAMBAHAN: CALLBACK SAAT LOGIN / LOGOUT TERJADI DI HALAMAN LAIN
+  void _onAuthChanged() {
+    _checkAuthStatus();
   }
 
   Future<void> _checkAuthStatus() async {
@@ -31,6 +47,8 @@ class _ProfilePageState extends State<ProfilePage> {
     if (loggedIn) {
       user = await AuthService.getStoredUser();
     }
+
+    if (!mounted) return;
 
     setState(() {
       isLoggedIn = loggedIn;
@@ -61,10 +79,14 @@ class _ProfilePageState extends State<ProfilePage> {
 
     if (confirm == true) {
       await AuthService.logout();
+
+      if (!mounted) return;
+
       setState(() {
         isLoggedIn = false;
         currentUser = null;
       });
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Berhasil logout')),
       );
@@ -140,6 +162,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
                       setDialogState(() => isLoading = false);
 
+                      if (!mounted) return;
+
                       if (result['success'] == true) {
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -153,7 +177,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           SnackBar(
                             content: Text(
                                 result['message'] ?? 'Gagal mengubah password'),
-                            backgroundColor: Colors.red,
+                            backgroundColor: const Color.fromARGB(255, 225, 65, 53),
                           ),
                         );
                       }
@@ -238,14 +262,13 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         const SizedBox(height: 24),
 
-        // Login Button
         SizedBox(
           width: double.infinity,
           height: 50,
           child: ElevatedButton.icon(
             onPressed: () async {
               await Navigator.pushNamed(context, '/login');
-              _checkAuthStatus(); // Refresh after login
+              _checkAuthStatus();
             },
             icon: const Icon(Icons.login),
             label: const Text(
@@ -254,23 +277,18 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF00ADB5),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
             ),
           ),
         ),
         const SizedBox(height: 16),
 
-        // Register Button
         SizedBox(
           width: double.infinity,
           height: 50,
           child: OutlinedButton.icon(
             onPressed: () async {
               await Navigator.pushNamed(context, '/register');
-              _checkAuthStatus(); // Refresh after register
+              _checkAuthStatus();
             },
             icon: const Icon(Icons.person_add),
             label: const Text(
@@ -280,9 +298,6 @@ class _ProfilePageState extends State<ProfilePage> {
             style: OutlinedButton.styleFrom(
               side: const BorderSide(color: Color(0xFF00ADB5)),
               foregroundColor: const Color(0xFF00ADB5),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
             ),
           ),
         ),
@@ -290,22 +305,7 @@ class _ProfilePageState extends State<ProfilePage> {
         const SizedBox(height: 32),
         const Divider(),
         const SizedBox(height: 16),
-
-        // Theme Toggle for Guest
-        const Text(
-          'Pengaturan',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
         _buildThemeToggle(),
-
-        const SizedBox(height: 24),
-        const Text(
-          'Anda bisa melihat Doa dan Artikel tanpa login.',
-          style: TextStyle(
-              fontSize: 14, fontStyle: FontStyle.italic, color: Colors.grey),
-          textAlign: TextAlign.center,
-        ),
       ],
     );
   }
@@ -328,7 +328,6 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         const SizedBox(height: 24),
 
-        // Admin Badge
         if (user.isAdmin)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -355,16 +354,6 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         const SizedBox(height: 24),
 
-        // User Info Cards
-        Card(
-          elevation: 3,
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          child: ListTile(
-            leading: const Icon(Icons.email, color: Color(0xFF00ADB5)),
-            title: const Text('Email'),
-            subtitle: Text(user.email),
-          ),
-        ),
         Card(
           elevation: 3,
           margin: const EdgeInsets.symmetric(vertical: 8),
@@ -375,26 +364,14 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
 
-        const SizedBox(height: 16),
-        const Divider(),
-        const SizedBox(height: 16),
-
-        // Theme Toggle
-        const Text(
-          'Pengaturan',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
         _buildThemeToggle(),
 
-        // Change Password Card
         Card(
           elevation: 3,
           margin: const EdgeInsets.symmetric(vertical: 8),
           child: ListTile(
             leading: const Icon(Icons.lock, color: Color(0xFF00ADB5)),
             title: const Text('Ganti Password'),
-            subtitle: const Text('Ubah password akun Anda'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _showChangePasswordDialog(),
           ),
@@ -402,7 +379,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
         const SizedBox(height: 24),
 
-        // Logout Button
         SizedBox(
           width: double.infinity,
           height: 50,
@@ -414,30 +390,10 @@ class _ProfilePageState extends State<ProfilePage> {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
+              backgroundColor: const Color.fromARGB(255, 255, 65, 51),
             ),
           ),
         ),
-
-        if (user.isAdmin) ...[
-          const SizedBox(height: 24),
-          const Divider(),
-          const SizedBox(height: 16),
-          const Text(
-            'Admin Menu',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Buka halaman Doa atau Artikel,\nlalu tap 📝 untuk kelola konten.',
-            style: TextStyle(color: Colors.grey),
-            textAlign: TextAlign.center,
-          ),
-        ],
       ],
     );
   }

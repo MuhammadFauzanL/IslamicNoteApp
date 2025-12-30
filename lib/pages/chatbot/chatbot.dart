@@ -32,7 +32,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
     messages.clear();
     messages.add({
       "role": "bot",
-      "text": "Wa'alaikumsalam 😊\n\nSaya Asisten Islami. Silakan tanyakan doa atau hadis yang kamu butuhkan.",
+      "text": "Halo 😊\n\nSaya Asisten Islami. Silakan tanyakan doa atau hadis yang kamu butuhkan.",
       "examples": [
         "doa sebelum makan",
         "hadis tentang sabar", 

@@ -54,7 +54,7 @@ class _DoaManagementPageState extends State<DoaManagementPage> {
     }
   }
 
-  Future<void> _deleteDoa(int id) async {
+  Future<void> _deleteDoa(String id) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(

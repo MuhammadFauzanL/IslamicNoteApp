@@ -5,13 +5,14 @@ class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
 
   @override
-  _LoginPageState createState() => _LoginPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
@@ -36,12 +37,12 @@ class _LoginPageState extends State<LoginPage> {
       password: _passwordController.text,
     );
 
-    setState(() {
-      _isLoading = false;
-    });
+    setState(() => _isLoading = false);
 
-    if (result['success']) {
-      Navigator.pushReplacementNamed(context, '/home');
+    if (!mounted) return;
+
+    if (result['success'] == true) {
+      Navigator.pop(context, true); // ✅ KUNCI UTAMA
     } else {
       setState(() {
         _errorMessage = result['message'];
@@ -53,6 +54,12 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF222831),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF222831),
+        elevation: 0,
+        foregroundColor: Colors.white, // ✅ BACK BUTTON PUTIH
+        title: const Text('Login'),
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -60,13 +67,8 @@ class _LoginPageState extends State<LoginPage> {
             child: Form(
               key: _formKey,
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo
-                  const Text(
-                    '☪️',
-                    style: TextStyle(fontSize: 64),
-                  ),
+                  const Text('☪️', style: TextStyle(fontSize: 64)),
                   const SizedBox(height: 16),
                   const Text(
                     'Islamic Note',
@@ -83,7 +85,6 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 32),
 
-                  // Error message
                   if (_errorMessage != null)
                     Container(
                       width: double.infinity,
@@ -100,7 +101,6 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
 
-                  // Email field
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
@@ -118,14 +118,14 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Password field
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
                     style: const TextStyle(color: Colors.white),
-                    decoration:
-                        _inputDecoration('Password', Icons.lock_outlined)
-                            .copyWith(
+                    decoration: _inputDecoration(
+                      'Password',
+                      Icons.lock_outlined,
+                    ).copyWith(
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword
@@ -149,7 +149,6 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Login button
                   SizedBox(
                     width: double.infinity,
                     height: 50,
@@ -158,50 +157,25 @@ class _LoginPageState extends State<LoginPage> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF00ADB5),
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
                       ),
                       child: _isLoading
                           ? const SizedBox(
-                              height: 20,
                               width: 20,
+                              height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
                                 valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                                    AlwaysStoppedAnimation(Colors.white),
                               ),
                             )
                           : const Text(
                               'Login',
                               style: TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.w600),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Register link
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'Belum punya akun? ',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.pushNamed(context, '/register');
-                        },
-                        child: const Text(
-                          'Daftar',
-                          style: TextStyle(
-                            color: Color(0xFF00ADB5),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
                   ),
                 ],
               ),
@@ -226,10 +200,6 @@ class _LoginPageState extends State<LoginPage> {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: Color(0xFF00ADB5)),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Colors.red),
       ),
     );
   }

@@ -1,79 +1,93 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../models/doa_model.dart';
 import '../models/artikel_model.dart';
 import '../config/api_config.dart';
-import 'cache_service.dart';
+import 'doa_service.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class ApiService {
-  static String get baseUrl => ApiConfig.baseUrl;
-  static Duration get timeout => ApiConfig.timeout;
+  // =========================
+  // DOA (OFFLINE-FIRST)
+  // =========================
 
-  // ==================== DOA ====================
-
+  /// 🔹 Ambil semua doa
+  /// - Offline → cache / assets
+  /// - Online → API + update cache
   static Future<List<DoaModel>> getAllDoa() async {
+    return await DoaService.getAllDoa();
+  }
+
+  /// 🔹 Ambil doa by ID (dari cache / assets)
+  static Future<DoaModel?> getDoaById(int id) async {
+    final list = await DoaService.getAllDoa();
     try {
-      final res = await http
-          .get(Uri.parse('$baseUrl/doa'))
-          .timeout(timeout);
-
-      if (res.statusCode != 200) {
-        throw Exception('Server error ${res.statusCode}');
-      }
-
-      final body = json.decode(res.body);
-      final List list = body['data'];
-
-      final result = list.map((e) => DoaModel.fromJson(e)).toList();
-      await CacheService.cacheDoa(result);
-      return result;
+      return list.firstWhere((d) => d.id == id);
     } catch (_) {
-      final cached = await CacheService.getCachedDoa();
-      if (cached != null) return cached;
-      rethrow;
+      return null;
     }
   }
 
-  static Future<DoaModel> getDoaById(int id) async {
-    final res = await http
-        .get(Uri.parse('$baseUrl/doa/$id'))
-        .timeout(timeout);
+  // =========================
+  // ARTIKEL (ONLINE ONLY)
+  // =========================
 
-    final body = json.decode(res.body);
-    return DoaModel.fromJson(body['data']);
-  }
-
-  // ==================== ARTIKEL ====================
-
+  /// 🔹 Ambil semua artikel
+  /// ❗ WAJIB internet
   static Future<List<ArtikelModel>> getAllArtikel() async {
-    try {
-      final res = await http
-          .get(Uri.parse('$baseUrl/artikel'))
-          .timeout(timeout);
-
-      if (res.statusCode != 200) {
-        throw Exception('Server error ${res.statusCode}');
-      }
-
-      final body = json.decode(res.body);
-      final List list = body['data'];
-
-      final result = list.map((e) => ArtikelModel.fromJson(e)).toList();
-      await CacheService.cacheArtikel(result);
-      return result;
-    } catch (_) {
-      final cached = await CacheService.getCachedArtikel();
-      if (cached != null) return cached;
-      rethrow;
+    final online = await _hasInternet();
+    if (!online) {
+      throw Exception('Artikel memerlukan koneksi internet');
     }
+
+    final response = await http
+        .get(Uri.parse(ApiConfig.artikelUrl))
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode != 200) {
+      throw Exception('Gagal memuat artikel');
+    }
+
+    final body = json.decode(response.body);
+
+    // SESUAIKAN jika backend kamu pakai { data: [...] }
+    final List list = body is Map ? body['data'] : body;
+
+    return list.map((e) => ArtikelModel.fromJson(e)).toList();
   }
 
+  /// 🔹 Ambil artikel by ID
   static Future<ArtikelModel> getArtikelById(int id) async {
-    final res = await http
-        .get(Uri.parse('$baseUrl/artikel/$id'))
-        .timeout(timeout);
+    final online = await _hasInternet();
+    if (!online) {
+      throw Exception('Artikel memerlukan koneksi internet');
+    }
 
-    final body = json.decode(res.body);
-    return ArtikelModel.fromJson(body['data']);
+    final response = await http
+        .get(Uri.parse('${ApiConfig.artikelUrl}/$id'))
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode != 200) {
+      throw Exception('Gagal memuat artikel');
+    }
+
+    final body = json.decode(response.body);
+    final data = body is Map ? body['data'] : body;
+
+    return ArtikelModel.fromJson(data);
+  }
+
+  // =========================
+  // INTERNET CHECK
+  // =========================
+
+  static Future<bool> _hasInternet() async {
+    try {
+      final res = await http
+          .get(Uri.parse('https://www.google.com'))
+          .timeout(const Duration(seconds: 3));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
   }
 }

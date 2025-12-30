@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../services/api_service.dart';
+import '../../services/artikel_service.dart';
 import '../../services/auth_service.dart';
 import '../../models/artikel_model.dart';
 import 'artikel_detail.dart';
@@ -62,7 +62,7 @@ class _ArtikelListPageState extends State<ArtikelListPage> {
       favoriteArtikels = favoriteIds.map((id) => int.tryParse(id) ?? 0).toSet();
 
       // Fetch artikel from API
-      final artikelList = await ApiService.getAllArtikel();
+      final artikelList = await ArtikelService.getAllArtikel();
 
       if (!mounted) return;
       setState(() {

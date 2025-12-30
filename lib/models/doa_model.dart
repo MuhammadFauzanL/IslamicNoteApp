@@ -1,5 +1,5 @@
 class DoaModel {
-  final int id;
+  final String id;
   final String label;
   final String judul;
   final String arab;
@@ -23,19 +23,27 @@ class DoaModel {
 
   factory DoaModel.fromJson(Map<String, dynamic> json) {
     return DoaModel(
-      id: json['id'] ?? 0,
-      label: json['label'] ?? '',
-      judul: json['judul'] ?? '',
-      arab: json['arab'] ?? '',
-      latin: json['latin'] ?? '',
-      arti: json['arti'] ?? '',
-      keywords:
-          json['keywords'] != null ? List<String>.from(json['keywords']) : [],
+      // 🔥 FIX UTAMA DI SINI
+      id: json['id']?.toString() ?? '',
+
+      label: json['label']?.toString() ?? '',
+      judul: json['judul']?.toString() ?? '',
+      arab: json['arab']?.toString() ?? '',
+      latin: json['latin']?.toString() ?? '',
+      arti: json['arti']?.toString() ?? '',
+
+      keywords: json['keywords'] is List
+          ? List<String>.from(
+              json['keywords'].map((e) => e.toString()),
+            )
+          : [],
+
       createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'])
+          ? DateTime.tryParse(json['created_at'].toString())
           : null,
+
       updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'])
+          ? DateTime.tryParse(json['updated_at'].toString())
           : null,
     );
   }

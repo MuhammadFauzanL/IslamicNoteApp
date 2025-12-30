@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 import '../config/api_config.dart';
+import '../core/auth_state.dart';
 
 class AuthService {
   // Menggunakan config terpusat
@@ -118,6 +119,7 @@ class AuthService {
         final user = UserModel.fromJson(data['data']['user']);
         final token = data['data']['token'];
         await saveAuthData(token, user);
+        authStateNotifier.value = true; // 
         return {'success': true, 'user': user};
       } else {
         return {'success': false, 'message': data['message'] ?? 'Login gagal'};
@@ -130,6 +132,7 @@ class AuthService {
   // Logout
   static Future<void> logout() async {
     await clearAuthData();
+    authStateNotifier.value = false;
   }
 
   // Get current user from API
