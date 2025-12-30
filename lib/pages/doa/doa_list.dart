@@ -9,6 +9,8 @@ import '../admin/doa_management_page.dart';
 class DoaListPage extends StatefulWidget {
   const DoaListPage({Key? key}) : super(key: key);
 
+  
+
   @override
   _DoaListPageState createState() => _DoaListPageState();
 }
@@ -29,6 +31,11 @@ class _DoaListPageState extends State<DoaListPage> {
   void initState() {
     super.initState();
     _initData();
+  }
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _checkAdmin();
   }
 
   Future<void> _initData() async {
