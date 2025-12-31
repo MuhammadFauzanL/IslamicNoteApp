@@ -57,13 +57,19 @@ class _RegisterPageState extends State<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF222831) : const Color(0xFFEEEEEE);
+    final cardColor = isDark ? const Color(0xFF393E46) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black87;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF222831),
+      backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back,
+              color: isDark ? Colors.white : Colors.black87),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -113,9 +119,9 @@ class _RegisterPageState extends State<RegisterPage> {
                   // Name field
                   TextFormField(
                     controller: _nameController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration:
-                        _inputDecoration('Nama Lengkap', Icons.person_outlined),
+                    style: TextStyle(color: textColor),
+                    decoration: _inputDecoration('Nama Lengkap',
+                        Icons.person_outlined, isDark, cardColor),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Nama wajib diisi';
@@ -129,8 +135,9 @@ class _RegisterPageState extends State<RegisterPage> {
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration('Email', Icons.email_outlined),
+                    style: TextStyle(color: textColor),
+                    decoration: _inputDecoration(
+                        'Email', Icons.email_outlined, isDark, cardColor),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Email wajib diisi';
@@ -147,10 +154,10 @@ class _RegisterPageState extends State<RegisterPage> {
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
-                    style: const TextStyle(color: Colors.white),
-                    decoration:
-                        _inputDecoration('Password', Icons.lock_outlined)
-                            .copyWith(
+                    style: TextStyle(color: textColor),
+                    decoration: _inputDecoration(
+                            'Password', Icons.lock_outlined, isDark, cardColor)
+                        .copyWith(
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword
@@ -181,9 +188,9 @@ class _RegisterPageState extends State<RegisterPage> {
                   TextFormField(
                     controller: _confirmPasswordController,
                     obscureText: _obscureConfirm,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration(
-                            'Konfirmasi Password', Icons.lock_outlined)
+                    style: TextStyle(color: textColor),
+                    decoration: _inputDecoration('Konfirmasi Password',
+                            Icons.lock_outlined, isDark, cardColor)
                         .copyWith(
                       suffixIcon: IconButton(
                         icon: Icon(
@@ -250,6 +257,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                       GestureDetector(
                         onTap: () {
+                          // Pop back to login (which is behind this page)
                           Navigator.pop(context);
                         },
                         child: const Text(
@@ -271,13 +279,14 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  InputDecoration _inputDecoration(String label, IconData icon) {
+  InputDecoration _inputDecoration(
+      String label, IconData icon, bool isDark, Color cardColor) {
     return InputDecoration(
       labelText: label,
       labelStyle: const TextStyle(color: Colors.grey),
       prefixIcon: Icon(icon, color: const Color(0xFF00ADB5)),
       filled: true,
-      fillColor: const Color(0xFF393E46),
+      fillColor: cardColor,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: BorderSide.none,

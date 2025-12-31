@@ -1,32 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
-import 'pages/chatbot/chatbot_guard.dart';
+import 'core/notifications.dart';
+
 import 'pages/user_home.dart';
 import 'pages/auth/login_page.dart';
 import 'pages/auth/register_page.dart';
 import 'pages/doa/doa_list.dart';
 import 'pages/artikel/artikel_list.dart';
 import 'pages/chatbot/chatbot.dart';
+import 'pages/chatbot/chatbot.dart' show routeObserver;
 import 'pages/profile/profile_page.dart';
-
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-    FlutterLocalNotificationsPlugin();
-
-Future<void> initNotifications() async {
-  const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
-
-  const InitializationSettings initializationSettings =
-      InitializationSettings(android: initializationSettingsAndroid);
-
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   tz.initializeTimeZones();
-  await initNotifications();
+  await initializeNotifications(); // Use centralized notification initialization
   runApp(const IslamicNoteApp());
 }
 
@@ -74,31 +62,26 @@ class _IslamicNoteAppState extends State<IslamicNoteApp> {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
-
+      navigatorObservers: [routeObserver],
       theme: ThemeData(
-  brightness: Brightness.light,
-  primarySwatch: createMaterialColor(accentColor),
-  scaffoldBackgroundColor: const Color(0xFFEEEEEE),
-
-  appBarTheme: const AppBarTheme(
-    backgroundColor: Color(0xFF00ADB5), // 🔵 BIRU
-    foregroundColor: Colors.white,      // teks & icon putih
-    elevation: 1,
-  ),
-),
-
+        brightness: Brightness.light,
+        primarySwatch: createMaterialColor(accentColor),
+        scaffoldBackgroundColor: const Color(0xFFEEEEEE),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF00ADB5), // 🔵 BIRU
+          foregroundColor: Colors.white, // teks & icon putih
+          elevation: 1,
+        ),
+      ),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
         primarySwatch: createMaterialColor(const Color(0xFF00ADB5)),
         scaffoldBackgroundColor: const Color(0xFF222831),
       ),
-
-
       home: UserHomePage(
         toggleTheme: toggleTheme,
         isDarkMode: _isDarkMode,
       ),
-
       routes: {
         '/home': (context) => UserHomePage(
               toggleTheme: toggleTheme,

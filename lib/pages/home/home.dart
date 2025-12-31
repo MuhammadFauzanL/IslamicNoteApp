@@ -3,7 +3,6 @@ import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:islamicnoteapp/pages/chatbot/chatbot.dart';
-import 'package:islamicnoteapp/services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../../core/notifications.dart';
@@ -39,8 +38,15 @@ class _HomePageState extends State<HomePage> {
   // INIT (OFFLINE FIRST)
   // =========================
   Future<void> _init() async {
-    await _loadCache();        // tampilkan cache / default dulu
-    _fetchInBackground();     // update online (non-blocking)
+    await _loadCache(); // tampilkan cache / default dulu
+    await _fetchInBackground(); // update online (wait for location permission first)
+
+    // Request notification permission after location (for first install)
+    if (mounted) {
+      // Add small delay to prevent permission dialog conflict
+      await Future.delayed(const Duration(milliseconds: 500));
+      await requestNotificationPermission();
+    }
   }
 
   // =========================
@@ -53,8 +59,7 @@ class _HomePageState extends State<HomePage> {
 
     if (cached != null) {
       setState(() {
-        jadwalSholat =
-            Map<String, String>.from(json.decode(cached));
+        jadwalSholat = Map<String, String>.from(json.decode(cached));
         locationName = cachedLoc ?? locationName;
         isLoading = false;
         isOffline = true;
@@ -81,15 +86,13 @@ class _HomePageState extends State<HomePage> {
   // =========================
   Future<void> _fetchInBackground() async {
     try {
-      bool serviceEnabled =
-          await Geolocator.isLocationServiceEnabled();
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         await _fetchWithFallback();
         return;
       }
 
-      LocationPermission permission =
-          await Geolocator.checkPermission();
+      LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
       }
@@ -100,21 +103,18 @@ class _HomePageState extends State<HomePage> {
         return;
       }
 
-      final position =
-          await Geolocator.getCurrentPosition(
+      final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.low,
       );
 
       try {
-        final placemarks =
-            await placemarkFromCoordinates(
+        final placemarks = await placemarkFromCoordinates(
           position.latitude,
           position.longitude,
         );
         if (placemarks.isNotEmpty) {
           final place = placemarks.first;
-          locationName =
-              place.subAdministrativeArea ??
+          locationName = place.subAdministrativeArea ??
               place.locality ??
               place.administrativeArea ??
               locationName;
@@ -151,8 +151,7 @@ class _HomePageState extends State<HomePage> {
       );
 
       if (res.statusCode == 200) {
-        final timings =
-            json.decode(res.body)['data']['timings'];
+        final timings = json.decode(res.body)['data']['timings'];
 
         final data = <String, String>{
           'Subuh': timings['Fajr'].toString(),
@@ -199,18 +198,10 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    for (final prayer in [
-      'Subuh',
-      'Dzuhur',
-      'Ashar',
-      'Maghrib',
-      'Isya'
-    ]) {
+    for (final prayer in ['Subuh', 'Dzuhur', 'Ashar', 'Maghrib', 'Isya']) {
       if (!jadwalSholat.containsKey(prayer)) continue;
       final t = toTime(jadwalSholat[prayer]!);
-      if (t.hour > now.hour ||
-          (t.hour == now.hour &&
-              t.minute > now.minute)) {
+      if (t.hour > now.hour || (t.hour == now.hour && t.minute > now.minute)) {
         return prayer;
       }
     }
@@ -228,22 +219,17 @@ class _HomePageState extends State<HomePage> {
     bool isDark,
   ) {
     final nextTextColor = Colors.white;
-    final normalTextColor =
-        isDark ? Colors.grey[300] : Colors.grey[800];
-    final iconColor =
-        isNext ? Colors.white : accentColor;
-    final bgColor =
-        isNext ? accentColor : Colors.transparent;
+    final normalTextColor = isDark ? Colors.grey[300] : Colors.grey[800];
+    final iconColor = isNext ? Colors.white : accentColor;
+    final bgColor = isNext ? accentColor : Colors.transparent;
 
     return Card(
       color: bgColor,
       elevation: isNext ? 5 : 0,
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       margin: const EdgeInsets.symmetric(vertical: 6),
       child: ListTile(
-        leading:
-            Icon(Icons.access_time, color: iconColor),
+        leading: Icon(Icons.access_time, color: iconColor),
         title: Text(
           prayerName,
           style: TextStyle(
@@ -257,8 +243,7 @@ class _HomePageState extends State<HomePage> {
           style: TextStyle(
             fontSize: 18,
             color: isNext ? nextTextColor : normalTextColor,
-            fontWeight:
-                isNext ? FontWeight.bold : FontWeight.normal,
+            fontWeight: isNext ? FontWeight.bold : FontWeight.normal,
           ),
         ),
       ),
@@ -268,6 +253,45 @@ class _HomePageState extends State<HomePage> {
   // =========================
   // UI
   // =========================
+  // Helper to handle permission request with dialog fallback
+  Future<bool> _checkOrRequestPermission(BuildContext context) async {
+    // 1. Try native request (popup)
+    final granted = await requestNotificationPermission();
+    if (granted) return true;
+
+    // 2. If denied (likely permanently or system block), ask to open settings
+    if (!mounted) return false;
+
+    bool? openSettings = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Izin Notifikasi Diperlukan'),
+        content: const Text(
+          'Sistem memblokir permintaan izin otomatis. Mohon aktifkan notifikasi secara manual di pengaturan agar pengingat sholat berfungsi.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Buka Pengaturan'),
+          ),
+        ],
+      ),
+    );
+
+    if (openSettings == true) {
+      await openNotificationSettings();
+      // We can't easily wait for return result here perfectly,
+      // but user can try clicking the button again after returning.
+      return false;
+    }
+
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool isDark = widget.isDarkMode;
@@ -284,8 +308,7 @@ class _HomePageState extends State<HomePage> {
           color: accentColor,
           onRefresh: _init,
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: isLoading
                 ? Center(
                     child: CircularProgressIndicator(
@@ -293,8 +316,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                   )
                 : ListView(
-                    physics:
-                        const AlwaysScrollableScrollPhysics(),
+                    physics: const AlwaysScrollableScrollPhysics(),
                     children: [
                       Text(
                         'Jadwal Sholat Hari Ini',
@@ -323,7 +345,6 @@ class _HomePageState extends State<HomePage> {
                         ],
                       ),
                       const SizedBox(height: 20),
-
                       ...jadwalSholat.entries.map(
                         (e) => buildPrayerTimeCard(
                           e.key,
@@ -333,28 +354,20 @@ class _HomePageState extends State<HomePage> {
                           isDark,
                         ),
                       ),
-
                       const SizedBox(height: 30),
-
                       ElevatedButton.icon(
                         icon: const Icon(Icons.menu_book, color: Colors.white),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: accentColor,
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 14),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
-                        onPressed: () =>
-                            widget.onTabChange?.call(1),
+                        onPressed: () => widget.onTabChange?.call(1),
                         label: const Text(
                           'Daftar Doa',
                           style: TextStyle(color: Colors.white),
                         ),
                       ),
                       const SizedBox(height: 14),
-
-
-              
-
                       ElevatedButton.icon(
                         icon: const Icon(Icons.article, color: Colors.white),
                         style: ElevatedButton.styleFrom(
@@ -366,45 +379,17 @@ class _HomePageState extends State<HomePage> {
                           'Daftar Artikel',
                           style: TextStyle(color: Colors.white),
                         ),
-                      ), const SizedBox(height: 14),
-
-          ElevatedButton.icon(
-            icon: const Icon(Icons.smart_toy, color: Colors.white),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: accentColor,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-            onPressed: () async {
-              final loggedIn = await AuthService.isLoggedIn();
-
-              if (!mounted) return;
-
-              // 🔒 BELUM LOGIN
-              if (!loggedIn) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Untuk mencoba chatbot, silakan login terlebih dahulu',
-                    ),
-                  ),
-                );
-
-                final result = await Navigator.pushNamed(context, '/login');
-
-                // ✅ LOGIN BERHASIL → BUKA CHATBOT
-                if (result == true && mounted) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const ChatbotPage(),
-                    ),
-                  );
-                }
-
-                return;
-              }
-
-                          // ✅ SUDAH LOGIN → LANGSUNG CHATBOT
+                      ),
+                      const SizedBox(height: 14),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.smart_toy, color: Colors.white),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: accentColor,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        onPressed: () {
+                          // Langsung navigasi ke ChatbotPage
+                          // Login popup akan ditampilkan oleh ChatbotPage jika belum login
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -417,25 +402,61 @@ class _HomePageState extends State<HomePage> {
                           style: TextStyle(color: Colors.white),
                         ),
                       ),
-
                       const SizedBox(height: 30),
-
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: accentColor,
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 16),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
                         onPressed: () async {
-                          await scheduleAllPrayerNotifications();
-                          if (!mounted) return;
+                          // Check if prayer times are available
+                          if (jadwalSholat.isEmpty ||
+                              jadwalSholat['Subuh'] == '--:--') {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Jadwal sholat belum tersedia. Mohon tunggu atau refresh halaman.',
+                                ),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                            return;
+                          }
+
+                          // Request permission (with dialog fallback)
+                          final permissionGranted =
+                              await _checkOrRequestPermission(context);
+                          if (!permissionGranted) return;
+
+                          // Show immediate feedback
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text(
-                                'Notifikasi pengingat sholat sudah dijadwalkan!',
-                              ),
+                              content: Text('Menjadwalkan notifikasi...'),
+                              duration: Duration(seconds: 1),
                             ),
                           );
+
+                          try {
+                            await scheduleAllPrayerNotifications(jadwalSholat);
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  '✅ Notifikasi dijadwalkan!\nSubuh ${jadwalSholat['Subuh']}, Dzuhur ${jadwalSholat['Dzuhur']}, Ashar ${jadwalSholat['Ashar']}, Maghrib ${jadwalSholat['Maghrib']}, Isya ${jadwalSholat['Isya']}',
+                                ),
+                                backgroundColor: Colors.green,
+                                duration: const Duration(seconds: 4),
+                              ),
+                            );
+                          } catch (e) {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('❌ Gagal menjadwalkan: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
                         },
                         child: const Text(
                           'Jadwalkan Notifikasi Pengingat Sholat',

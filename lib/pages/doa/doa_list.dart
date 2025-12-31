@@ -9,8 +9,6 @@ import '../admin/doa_management_page.dart';
 class DoaListPage extends StatefulWidget {
   const DoaListPage({Key? key}) : super(key: key);
 
-  
-
   @override
   _DoaListPageState createState() => _DoaListPageState();
 }
@@ -26,12 +24,14 @@ class _DoaListPageState extends State<DoaListPage> {
   bool isOffline = false;
   String? cacheAge;
   String? errorMessage;
+  String _favoriteKey = 'favoriteDoas_guest'; // Will be updated with user ID
 
   @override
   void initState() {
     super.initState();
     _initData();
   }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -59,8 +59,14 @@ class _DoaListPageState extends State<DoaListPage> {
     });
 
     try {
+      // Load favorites from local storage (per user)
+      final user = await AuthService.getStoredUser();
+      final userId = user?.id.toString() ?? 'guest';
+      _favoriteKey = 'favoriteDoas_user_$userId';
+
       final prefs = await SharedPreferences.getInstance();
-      favoriteDoas = prefs.getStringList('favoriteDoas')?.toSet() ?? {};
+      await prefs.reload(); // Force reload from disk
+      favoriteDoas = prefs.getStringList(_favoriteKey)?.toSet() ?? {};
 
       final online = await DoaService.hasInternet();
       final doaList = await DoaService.getAllDoa();
@@ -88,18 +94,30 @@ class _DoaListPageState extends State<DoaListPage> {
 
     final online = await DoaService.hasInternet();
     if (!online) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Tidak ada koneksi internet'),
-          backgroundColor: Color(0xFF00ADB5),
-        ),
-      );
+      if (mounted) {
+        setState(() => isOffline = true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Tidak ada koneksi internet'),
+            backgroundColor: Color(0xFF00ADB5),
+          ),
+        );
+      }
       return;
     }
 
     setState(() => isLoading = true);
 
     try {
+      // Reload favorites with current user context
+      final user = await AuthService.getStoredUser();
+      final userId = user?.id.toString() ?? 'guest';
+      _favoriteKey = 'favoriteDoas_user_$userId';
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload(); // Force reload from disk
+      favoriteDoas = prefs.getStringList(_favoriteKey)?.toSet() ?? {};
+
       final doaList = await DoaService.refreshDoa();
       final age = await DoaService.getCacheAge();
 
@@ -132,6 +150,14 @@ class _DoaListPageState extends State<DoaListPage> {
   }
 
   Future<void> _toggleFavorite(DoaModel doa) async {
+    // Check if user is logged in
+    final user = await AuthService.getStoredUser();
+    if (user == null) {
+      // Show login dialog
+      _showLoginRequiredDialog();
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
 
     setState(() {
@@ -141,9 +167,34 @@ class _DoaListPageState extends State<DoaListPage> {
         favoriteDoas.add(doa.id);
       }
 
-      prefs.setStringList('favoriteDoas', favoriteDoas.toList());
+      // Save using user-specific key
+      prefs.setStringList(_favoriteKey, favoriteDoas.toList());
       _updateFilteredDoa(searchController.text);
     });
+  }
+
+  void _showLoginRequiredDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Login Diperlukan'),
+        content: const Text(
+            'Silakan login terlebih dahulu untuk menyimpan doa favorit.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/login');
+            },
+            child: const Text('Login'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _updateFilteredDoa(String query) {
@@ -238,12 +289,14 @@ class _DoaListPageState extends State<DoaListPage> {
             children: [
               Text(
                 '${filteredDoa.length} doa',
-                style: const TextStyle(fontSize: 12, color: Color.fromARGB(255, 73, 73, 73)),
+                style: const TextStyle(
+                    fontSize: 12, color: Color.fromARGB(255, 73, 73, 73)),
               ),
               if (!isOffline && cacheAge != null)
                 Text(
                   'Diperbarui: $cacheAge',
-                  style: const TextStyle(fontSize: 11, color: Color.fromARGB(255, 43, 43, 43)),
+                  style: const TextStyle(
+                      fontSize: 11, color: Color.fromARGB(255, 43, 43, 43)),
                 ),
             ],
           ),
@@ -269,9 +322,7 @@ class _DoaListPageState extends State<DoaListPage> {
                         ),
                         trailing: IconButton(
                           icon: Icon(
-                            isFav
-                                ? Icons.favorite
-                                : Icons.favorite_border,
+                            isFav ? Icons.favorite : Icons.favorite_border,
                             color: isFav ? Colors.red : null,
                           ),
                           onPressed: () => _toggleFavorite(doa),

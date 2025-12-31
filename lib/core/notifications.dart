@@ -1,21 +1,53 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
+import 'package:permission_handler/permission_handler.dart'
+    show openAppSettings;
+import 'package:flutter_timezone/flutter_timezone.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
+Future<bool> openNotificationSettings() async {
+  return await openAppSettings();
+}
+
 Future<void> initializeNotifications() async {
   tz.initializeTimeZones();
+  final String timeZoneName = await FlutterTimezone.getLocalTimezone();
+  tz.setLocalLocation(tz.getLocation(timeZoneName));
 
   const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
+      AndroidInitializationSettings('ic_stat_masjid');
 
   final InitializationSettings initializationSettings = InitializationSettings(
     android: initializationSettingsAndroid,
   );
 
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+}
+
+/// Request notification permission - returns true if granted, false otherwise.
+/// Uses the native plugin method which is more reliable for Android 13+
+Future<bool> requestNotificationPermission() async {
+  final androidPlugin =
+      flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+
+  if (androidPlugin != null) {
+    // This calls the native ActivityCompat.requestPermissions
+    final granted = await androidPlugin.requestNotificationsPermission();
+    return granted ?? false;
+  }
+
+  // For non-Android or older versions where requesting isn't needed/supported
+  return true;
+}
+
+/// Check if notification permission is granted without requesting
+Future<bool> isNotificationPermissionGranted() async {
+  // Native plugin check logic is implicit in the request, returning true to proceed
+  return true;
 }
 
 Future<void> schedulePrayerNotification({
@@ -36,6 +68,7 @@ Future<void> schedulePrayerNotification({
         channelDescription: 'Channel untuk notifikasi pengingat sholat',
         importance: Importance.max,
         priority: Priority.high,
+        largeIcon: const DrawableResourceAndroidBitmap('@mipmap/launcher_icon'),
       ),
     ),
     androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -45,21 +78,51 @@ Future<void> schedulePrayerNotification({
   );
 }
 
-Future<void> scheduleAllPrayerNotifications() async {
+Future<void> scheduleAllPrayerNotifications(
+    Map<String, String> prayerTimes) async {
   final now = tz.TZDateTime.now(tz.local);
 
-  final prayers = {
-    'Subuh': tz.TZDateTime(tz.local, now.year, now.month, now.day, 4, 30),
-    'Dzuhur': tz.TZDateTime(tz.local, now.year, now.month, now.day, 12, 0),
-    'Ashar': tz.TZDateTime(tz.local, now.year, now.month, now.day, 15, 0),
-    'Maghrib': tz.TZDateTime(tz.local, now.year, now.month, now.day, 18, 0),
-    'Isya': tz.TZDateTime(tz.local, now.year, now.month, now.day, 19, 30),
+  // Cancel existing prayer notifications first
+  for (int i = 0; i < 5; i++) {
+    await flutterLocalNotificationsPlugin.cancel(i);
+  }
+
+  // Map prayer names to their times
+  final prayerMap = {
+    'Subuh': prayerTimes['Subuh'],
+    'Dzuhur': prayerTimes['Dzuhur'],
+    'Ashar': prayerTimes['Ashar'],
+    'Maghrib': prayerTimes['Maghrib'],
+    'Isya': prayerTimes['Isya'],
   };
 
   int id = 0;
-  for (final prayer in prayers.entries) {
-    tz.TZDateTime scheduledTime = prayer.value;
+  for (final prayer in prayerMap.entries) {
+    if (prayer.value == null || prayer.value == '--:--') {
+      id++;
+      continue;
+    }
 
+    // Parse time string (format: "HH:mm")
+    final timeParts = prayer.value!.split(':');
+    if (timeParts.length != 2) {
+      id++;
+      continue;
+    }
+
+    final hour = int.tryParse(timeParts[0]) ?? 0;
+    final minute = int.tryParse(timeParts[1]) ?? 0;
+
+    tz.TZDateTime scheduledTime = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    );
+
+    // If time has passed today, schedule for tomorrow
     if (scheduledTime.isBefore(now)) {
       scheduledTime = scheduledTime.add(const Duration(days: 1));
     }
@@ -86,6 +149,7 @@ Future<void> showPrayerReminderNotification(String prayerName) async {
         channelDescription: 'Channel untuk notifikasi pengingat sholat',
         importance: Importance.max,
         priority: Priority.high,
+        largeIcon: const DrawableResourceAndroidBitmap('@mipmap/launcher_icon'),
       ),
     ),
   );

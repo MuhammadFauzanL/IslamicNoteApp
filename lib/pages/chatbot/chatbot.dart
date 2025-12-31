@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../services/chat_api.dart';
+import '../../services/auth_service.dart';
+
+// Global route observer for detecting route changes
+final RouteObserver<ModalRoute<void>> routeObserver =
+    RouteObserver<ModalRoute<void>>();
 
 class ChatbotPage extends StatefulWidget {
   const ChatbotPage({super.key});
@@ -8,11 +13,13 @@ class ChatbotPage extends StatefulWidget {
   State<ChatbotPage> createState() => _ChatbotPageState();
 }
 
-class _ChatbotPageState extends State<ChatbotPage> {
+class _ChatbotPageState extends State<ChatbotPage> with RouteAware {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  
+
   late final String _sessionId;
+  bool _isLoggedIn = true; // Assume logged in initially
+  bool _dialogShowing = false; // Track if dialog is currently showing
 
   // PRIMARY COLORS (same for both themes)
   static const Color primaryColor = Color(0xFF00ADB5);
@@ -26,16 +33,114 @@ class _ChatbotPageState extends State<ChatbotPage> {
     super.initState();
     _sessionId = "session_${DateTime.now().millisecondsSinceEpoch}";
     _initGreeting();
+    _checkLoginStatus();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Subscribe to route changes
+    routeObserver.subscribe(this, ModalRoute.of(context)!);
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  // Called when this route becomes the active route again (popped back to)
+  @override
+  void didPopNext() {
+    super.didPopNext();
+    // Re-check login status when returning to this page
+    _checkLoginStatusOnReturn();
+  }
+
+  Future<void> _checkLoginStatusOnReturn() async {
+    if (!mounted || _dialogShowing) return;
+    final loggedIn = await AuthService.isLoggedIn();
+    if (!mounted) return;
+
+    setState(() {
+      _isLoggedIn = loggedIn;
+    });
+
+    // Show popup if not logged in
+    if (!loggedIn) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_dialogShowing) {
+          _showLoginRequiredDialog();
+        }
+      });
+    }
+  }
+
+  Future<void> _checkLoginStatus() async {
+    final loggedIn = await AuthService.isLoggedIn();
+    if (!mounted) return;
+
+    setState(() {
+      _isLoggedIn = loggedIn;
+    });
+
+    // Show login dialog after frame is built
+    if (!loggedIn) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_dialogShowing) {
+          _showLoginRequiredDialog();
+        }
+      });
+    }
+  }
+
+  void _showLoginRequiredDialog() {
+    if (_dialogShowing || !mounted) return;
+    _dialogShowing = true;
+
+    showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Login Diperlukan'),
+        content: const Text(
+            'Untuk menggunakan chatbot, silakan login terlebih dahulu.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, 'back'),
+            child: const Text('Kembali'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, 'login'),
+            child: const Text('Login'),
+          ),
+        ],
+      ),
+    ).then((result) {
+      _dialogShowing = false;
+      if (!mounted) return;
+
+      if (result == 'back' || result == null) {
+        // User pressed Kembali or back button - go back from chatbot
+        Navigator.pop(context);
+      } else if (result == 'login') {
+        // User wants to login
+        Navigator.pushNamed(context, '/login');
+      }
+    });
   }
 
   void _initGreeting() {
     messages.clear();
     messages.add({
       "role": "bot",
-      "text": "Halo 😊\n\nSaya Asisten Islami. Silakan tanyakan doa atau hadis yang kamu butuhkan.",
+      "text":
+          "Halo 😊\n\nSaya Asisten Islami. Silakan tanyakan doa atau hadis yang kamu butuhkan.",
       "examples": [
         "doa sebelum makan",
-        "hadis tentang sabar", 
+        "hadis tentang sabar",
         "doa naik kendaraan"
       ]
     });
@@ -106,17 +211,13 @@ class _ChatbotPageState extends State<ChatbotPage> {
           final summary = response["summary"];
 
           if (msg.isNotEmpty) {
-            messages.add({
-              "role": "bot",
-              "text": msg,
-              "type": "info"
-            });
+            messages.add({"role": "bot", "text": msg, "type": "info"});
           }
 
           for (var item in results) {
             final d = item["data"];
             final sourceType = d["source_type"] ?? "";
-            
+
             messages.add({
               "role": "bot",
               "type": "card",
@@ -129,25 +230,24 @@ class _ChatbotPageState extends State<ChatbotPage> {
             final total = summary["total"] ?? 0;
             final doaCount = summary["doa_count"] ?? 0;
             final hadisCount = summary["hadis_count"] ?? 0;
-            
+
             if (total > results.length) {
               messages.add({
                 "role": "bot",
-                "text": "Menampilkan ${results.length} dari $total hasil (${doaCount} doa, ${hadisCount} hadis)",
+                "text":
+                    "Menampilkan ${results.length} dari $total hasil (${doaCount} doa, ${hadisCount} hadis)",
                 "type": "info"
               });
             }
           }
-        }
-        else if (status == "ASK") {
+        } else if (status == "ASK") {
           messages.add({
             "role": "bot",
             "text": msg,
             "examples": examples,
             "suggestions": suggestions,
           });
-        }
-        else {
+        } else {
           messages.add({
             "role": "bot",
             "text": msg.isNotEmpty ? msg : "Maaf, terjadi kesalahan.",
@@ -169,30 +269,26 @@ class _ChatbotPageState extends State<ChatbotPage> {
         isLoading = false;
         messages.add({
           "role": "bot",
-          "text": "Maaf, server tidak merespons. Pastikan koneksi internet stabil.",
+          "text":
+              "Maaf, server tidak merespons. Pastikan koneksi internet stabil.",
         });
       });
     }
   }
 
   @override
-  void dispose() {
-    _controller.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     // Dynamic colors based on theme
     final bgColor = isDark ? const Color(0xFF222831) : const Color(0xFFEEEEEE);
     final cardColor = isDark ? const Color(0xFF393E46) : Colors.white;
     final textColor = isDark ? Colors.white : Colors.black87;
     final subtleTextColor = isDark ? Colors.grey : const Color(0xFF616161);
-    final inputBgColor = isDark ? const Color(0xFF393E46) : const Color(0xFFF5F5F5);
-    final borderColor = isDark ? const Color(0xFF4A5057) : const Color(0xFFE0E0E0);
+    final inputBgColor =
+        isDark ? const Color(0xFF393E46) : const Color(0xFFF5F5F5);
+    final borderColor =
+        isDark ? const Color(0xFF4A5057) : const Color(0xFFE0E0E0);
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -209,7 +305,8 @@ class _ChatbotPageState extends State<ChatbotPage> {
               controller: _scrollController,
               padding: const EdgeInsets.all(16),
               itemCount: messages.length,
-              itemBuilder: (_, i) => _buildMessage(messages[i], isDark, cardColor, textColor, subtleTextColor),
+              itemBuilder: (_, i) => _buildMessage(
+                  messages[i], isDark, cardColor, textColor, subtleTextColor),
             ),
           ),
           if (isLoading)
@@ -225,7 +322,8 @@ class _ChatbotPageState extends State<ChatbotPage> {
     );
   }
 
-  Widget _buildMessage(Map<String, dynamic> message, bool isDark, Color cardColor, Color textColor, Color subtleTextColor) {
+  Widget _buildMessage(Map<String, dynamic> message, bool isDark,
+      Color cardColor, Color textColor, Color subtleTextColor) {
     final isUser = message["role"] == "user";
     final type = message["type"];
 
@@ -235,7 +333,9 @@ class _ChatbotPageState extends State<ChatbotPage> {
           margin: const EdgeInsets.symmetric(vertical: 8),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF393E46).withOpacity(0.5) : const Color(0xFFE0E0E0),
+            color: isDark
+                ? const Color(0xFF393E46).withOpacity(0.5)
+                : const Color(0xFFE0E0E0),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
@@ -251,7 +351,8 @@ class _ChatbotPageState extends State<ChatbotPage> {
     }
 
     if (type == "card") {
-      return _buildResultCard(message, isDark, cardColor, textColor, subtleTextColor);
+      return _buildResultCard(
+          message, isDark, cardColor, textColor, subtleTextColor);
     }
 
     return Align(
@@ -283,29 +384,27 @@ class _ChatbotPageState extends State<ChatbotPage> {
                 fontSize: 15,
               ),
             ),
-            
             if (message["examples"] != null) ...[
               const SizedBox(height: 12),
-              ...((message["examples"] as List).map((ex) => 
-                _buildExampleChip(ex.toString(), isDark)
-              ).toList()),
+              ...((message["examples"] as List)
+                  .map((ex) => _buildExampleChip(ex.toString(), isDark))
+                  .toList()),
             ],
-            
             if (message["suggestions"] != null) ...[
               const SizedBox(height: 8),
-              ...((message["suggestions"] as List).map((sug) => 
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    "💡 $sug",
-                    style: TextStyle(
-                      color: isUser ? Colors.white70 : subtleTextColor,
-                      fontSize: 13,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                )
-              ).toList()),
+              ...((message["suggestions"] as List)
+                  .map((sug) => Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          "💡 $sug",
+                          style: TextStyle(
+                            color: isUser ? Colors.white70 : subtleTextColor,
+                            fontSize: 13,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ))
+                  .toList()),
             ],
           ],
         ),
@@ -313,7 +412,8 @@ class _ChatbotPageState extends State<ChatbotPage> {
     );
   }
 
-  Widget _buildResultCard(Map<String, dynamic> message, bool isDark, Color cardColor, Color textColor, Color subtleTextColor) {
+  Widget _buildResultCard(Map<String, dynamic> message, bool isDark,
+      Color cardColor, Color textColor, Color subtleTextColor) {
     final data = message["data"];
     final sourceType = message["sourceType"];
     final isDoa = sourceType == "doa";
@@ -331,7 +431,9 @@ class _ChatbotPageState extends State<ChatbotPage> {
         color: cardColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isDoa ? primaryColor.withOpacity(isDark ? 0.5 : 0.3) : orangeColor.withOpacity(isDark ? 0.5 : 0.3),
+          color: isDoa
+              ? primaryColor.withOpacity(isDark ? 0.5 : 0.3)
+              : orangeColor.withOpacity(isDark ? 0.5 : 0.3),
           width: 2,
         ),
         boxShadow: [
@@ -350,7 +452,8 @@ class _ChatbotPageState extends State<ChatbotPage> {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: (isDoa ? primaryColor : orangeColor).withOpacity(isDark ? 0.2 : 0.1),
+                  color: (isDoa ? primaryColor : orangeColor)
+                      .withOpacity(isDark ? 0.2 : 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -384,11 +487,11 @@ class _ChatbotPageState extends State<ChatbotPage> {
               ),
             ],
           ),
-          
           const SizedBox(height: 12),
-          Divider(height: 1, color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+          Divider(
+              height: 1,
+              color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
           const SizedBox(height: 12),
-          
           if (arab.isNotEmpty) ...[
             Text(
               arab,
@@ -404,7 +507,6 @@ class _ChatbotPageState extends State<ChatbotPage> {
             ),
             const SizedBox(height: 12),
           ],
-          
           if (latin.isNotEmpty) ...[
             Text(
               latin,
@@ -416,12 +518,13 @@ class _ChatbotPageState extends State<ChatbotPage> {
             ),
             const SizedBox(height: 8),
           ],
-          
           if (arti.isNotEmpty) ...[
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF222831).withOpacity(0.5) : const Color(0xFFF5F5F5),
+                color: isDark
+                    ? const Color(0xFF222831).withOpacity(0.5)
+                    : const Color(0xFFF5F5F5),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -449,7 +552,8 @@ class _ChatbotPageState extends State<ChatbotPage> {
           decoration: BoxDecoration(
             color: primaryColor.withOpacity(isDark ? 0.2 : 0.1),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: primaryColor.withOpacity(isDark ? 0.5 : 0.3)),
+            border:
+                Border.all(color: primaryColor.withOpacity(isDark ? 0.5 : 0.3)),
           ),
           child: Text(
             example,
@@ -501,7 +605,8 @@ class _ChatbotPageState extends State<ChatbotPage> {
     );
   }
 
-  Widget _inputBar(bool isDark, Color cardColor, Color textColor, Color inputBgColor, Color borderColor) {
+  Widget _inputBar(bool isDark, Color cardColor, Color textColor,
+      Color inputBgColor, Color borderColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(

@@ -1,0 +1,40 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24.0"
+    android:viewportHeight="24.0">
+    <!-- Mosque matching user image with Spire instead of Crescent -->
+    
+    <!-- Spire / Finial (Tiang atas) -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M11.5,1.5 h1 v3.5 h-1 Z"/>
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,1.5 m-0.8,0 a0.8,0.8 0 1,1 1.6,0 a0.8,0.8 0 1,1 -1.6,0"/>
+        
+    <!-- Main Dome -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M7,11 C7,7 9,5 12,5 C15,5 17,7 17,11 H7 Z"/>
+        
+    <!-- Base Bar under Dome -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M6.5,11.5 H17.5 V12.5 H6.5 Z"/>
+        
+    <!-- Main Box Body with Door Cutout -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M7,13 H17 V22 H14.5 V18 C14.5,16.9 13.6,16 12.5,16 C11.4,16 10.5,16.9 10.5,18 V22 H7 V13 Z"/>
+        
+    <!-- Left Minaret -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M4,13 H6 V22 H4 Z M3.5,10 C3.5,8.9 4.4,8 5,8 C5.6,8 6.5,8.9 6.5,10 H3.5 Z"/>
+
+    <!-- Right Minaret -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M18,13 H20 V22 H18 Z M17.5,10 C17.5,8.9 18.4,8 19,8 C19.6,8 20.5,8.9 20.5,10 H17.5 Z"/>
+</vector>

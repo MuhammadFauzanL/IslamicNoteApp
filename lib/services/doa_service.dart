@@ -4,24 +4,21 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/doa_model.dart';
 import '../config/api_config.dart';
-import '../../services/artikel_service.dart';
-
-
 
 class DoaService {
   // ================================
   // 🌐 CHECK INTERNET (BACKEND HEALTH)
   // ================================
   static Future<bool> hasInternet() async {
-  try {
-    final res = await http
-        .get(Uri.parse(ApiConfig.healthUrl))
-        .timeout(const Duration(seconds: 5));
-    return res.statusCode == 200;
-  } catch (_) {
-    return false;
+    try {
+      final res = await http
+          .get(Uri.parse(ApiConfig.healthUrl))
+          .timeout(const Duration(seconds: 5));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
   }
-}
 
   // =========================================
   // 📚 GET ALL DOA (OFFLINE-FIRST, AUTO UPDATE)
@@ -55,9 +52,7 @@ class DoaService {
               // simpan cache hanya DATA-nya
               await _saveDoaToCache(json.encode(jsonData));
 
-              return jsonData
-                  .map((e) => DoaModel.fromJson(e))
-                  .toList();
+              return jsonData.map((e) => DoaModel.fromJson(e)).toList();
             } else {
               throw Exception('Format response doa tidak valid');
             }
@@ -116,9 +111,7 @@ class DoaService {
 
       if (cachedData != null) {
         final List<dynamic> jsonData = json.decode(cachedData);
-        return jsonData
-            .map((e) => DoaModel.fromJson(e))
-            .toList();
+        return jsonData.map((e) => DoaModel.fromJson(e)).toList();
       }
     } catch (e) {
       print('❌ Error loading doa from cache: $e');
@@ -134,9 +127,7 @@ class DoaService {
       final String jsonString =
           await rootBundle.loadString('assets/data/doa_dataset.json');
       final List<dynamic> jsonData = json.decode(jsonString);
-      return jsonData
-          .map((e) => DoaModel.fromJson(e))
-          .toList();
+      return jsonData.map((e) => DoaModel.fromJson(e)).toList();
     } catch (e) {
       print('❌ Error loading doa from assets: $e');
       return [];
@@ -161,9 +152,7 @@ class DoaService {
 
           await _saveDoaToCache(json.encode(jsonData));
 
-          return jsonData
-              .map((e) => DoaModel.fromJson(e))
-              .toList();
+          return jsonData.map((e) => DoaModel.fromJson(e)).toList();
         }
       }
     } catch (e) {

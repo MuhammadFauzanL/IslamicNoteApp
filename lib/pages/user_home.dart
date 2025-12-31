@@ -5,7 +5,7 @@ import 'doa/doa_list.dart';
 import 'artikel/artikel_list.dart';
 import 'chatbot/chatbot.dart';
 import 'profile/profile_page.dart';
-import '../services/auth_service.dart';
+
 import '../core/auth_state.dart'; // ✅ WAJIB: Import ini agar authStateNotifier terbaca
 
 class UserHomePage extends StatefulWidget {
@@ -52,16 +52,16 @@ class _UserHomePageState extends State<UserHomePage> {
 
     setState(() {
       // 1. Reset Key Scaffold (Refresh seluruh struktur halaman)
-      _scaffoldKey = UniqueKey(); 
-      
+      _scaffoldKey = UniqueKey();
+
       // 2. Reset Key Halaman Anak (Refresh isi Doa & Artikel)
       _doaKey = UniqueKey();
       _artikelKey = UniqueKey();
-      
+
       // 3. Kembalikan ke Home agar user tidak bingung
-      _currentIndex = 0; 
+      _currentIndex = 0;
     });
-    
+
     print("🔄 UI Direset Total karena status Login berubah");
   }
 
@@ -78,10 +78,10 @@ class _UserHomePageState extends State<UserHomePage> {
           isDarkMode: widget.isDarkMode,
           onTabChange: _switchTab,
         ),
-        
+
         // Index 1: Doa List (Pasang Key di sini!)
         DoaListPage(key: _doaKey),
-        
+
         // Index 2: Artikel List (Pasang Key di sini!)
         ArtikelListPage(key: _artikelKey),
 
@@ -113,45 +113,11 @@ class _UserHomePageState extends State<UserHomePage> {
   Future<void> _onTabTapped(int index) async {
     // ================= CHATBOT (INDEX 3) =================
     if (index == 3) {
-      final loggedIn = await AuthService.isLoggedIn();
-      if (!mounted) return;
-
-      // 🔒 BELUM LOGIN
-      if (!loggedIn) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Untuk mencoba chatbot, silakan login terlebih dahulu',
-            ),
-          ),
-        );
-
-        final result = await Navigator.pushNamed(context, '/login');
-
-        // ✅ LOGIN BERHASIL → BUKA CHATBOT
-        if (result == true && mounted) {
-          // Trigger manual update state jika perlu
-          _onAuthChanged(); 
-          
-          await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const ChatbotPage(),
-            ),
-          );
-        }
-
-        return;
-      }
-
-      // ✅ SUDAH LOGIN → LANGSUNG CHATBOT
+      // Langsung buka chatbot - pengecekan login ada di dalam halaman chatbot
       await Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (_) => const ChatbotPage(),
-        ),
+        MaterialPageRoute(builder: (_) => const ChatbotPage()),
       );
-
       return;
     }
 
@@ -171,19 +137,18 @@ class _UserHomePageState extends State<UserHomePage> {
     return Scaffold(
       key: _scaffoldKey, // 🔥 KEY UTAMA DIPASANG DI SINI
       backgroundColor: isDark ? darkBgColor : lightBgColor,
-      
-      // IndexedStack menjaga halaman tetap hidup, 
+
+      // IndexedStack menjaga halaman tetap hidup,
       // tapi _doaKey yang berubah akan memaksanya mati dan hidup ulang.
       body: IndexedStack(
         index: _currentIndex,
         children: _pages,
       ),
-      
+
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: isDark ? darkBgColor : lightBgColor,
         selectedItemColor: accentColor,
-        unselectedItemColor:
-            isDark ? const Color(0xFFEEEEEE) : Colors.black54,
+        unselectedItemColor: isDark ? const Color(0xFFEEEEEE) : Colors.black54,
         currentIndex: _currentIndex,
         onTap: _onTabTapped,
         type: BottomNavigationBarType.fixed,

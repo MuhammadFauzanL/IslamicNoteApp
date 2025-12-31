@@ -42,7 +42,7 @@ class _LoginPageState extends State<LoginPage> {
     if (!mounted) return;
 
     if (result['success'] == true) {
-      Navigator.pop(context, true); // ✅ KUNCI UTAMA
+      Navigator.pop(context, true);
     } else {
       setState(() {
         _errorMessage = result['message'];
@@ -52,12 +52,17 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF222831) : const Color(0xFFEEEEEE);
+    final cardColor = isDark ? const Color(0xFF393E46) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black87;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF222831),
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF222831),
+        backgroundColor: bgColor,
         elevation: 0,
-        foregroundColor: Colors.white, // ✅ BACK BUTTON PUTIH
+        foregroundColor: isDark ? Colors.white : Colors.black87,
         title: const Text('Login'),
       ),
       body: SafeArea(
@@ -68,7 +73,13 @@ class _LoginPageState extends State<LoginPage> {
               key: _formKey,
               child: Column(
                 children: [
-                  const Text('☪️', style: TextStyle(fontSize: 64)),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.asset(
+                      'assets/images/logo.jpg',
+                      height: 150,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   const Text(
                     'Islamic Note',
@@ -84,7 +95,6 @@ class _LoginPageState extends State<LoginPage> {
                     style: TextStyle(color: Colors.grey),
                   ),
                   const SizedBox(height: 32),
-
                   if (_errorMessage != null)
                     Container(
                       width: double.infinity,
@@ -100,12 +110,12 @@ class _LoginPageState extends State<LoginPage> {
                         style: const TextStyle(color: Colors.red),
                       ),
                     ),
-
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration('Email', Icons.email_outlined),
+                    style: TextStyle(color: textColor),
+                    decoration: _inputDecoration(
+                        'Email', Icons.email_outlined, isDark, cardColor),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Email wajib diisi';
@@ -117,14 +127,15 @@ class _LoginPageState extends State<LoginPage> {
                     },
                   ),
                   const SizedBox(height: 16),
-
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: textColor),
                     decoration: _inputDecoration(
                       'Password',
                       Icons.lock_outlined,
+                      isDark,
+                      cardColor,
                     ).copyWith(
                       suffixIcon: IconButton(
                         icon: Icon(
@@ -148,7 +159,6 @@ class _LoginPageState extends State<LoginPage> {
                     },
                   ),
                   const SizedBox(height: 24),
-
                   SizedBox(
                     width: double.infinity,
                     height: 50,
@@ -177,6 +187,28 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                     ),
                   ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'Belum punya akun? ',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pushNamed(context, '/register');
+                        },
+                        child: const Text(
+                          'Daftar',
+                          style: TextStyle(
+                            color: Color(0xFF00ADB5),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -186,13 +218,14 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  InputDecoration _inputDecoration(String label, IconData icon) {
+  InputDecoration _inputDecoration(
+      String label, IconData icon, bool isDark, Color cardColor) {
     return InputDecoration(
       labelText: label,
       labelStyle: const TextStyle(color: Colors.grey),
       prefixIcon: Icon(icon, color: const Color(0xFF00ADB5)),
       filled: true,
-      fillColor: const Color(0xFF393E46),
+      fillColor: cardColor,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: BorderSide.none,

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../../models/artikel_model.dart';
+import '../../services/artikel_service.dart';
 import '../../services/auth_service.dart';
 import '../../config/api_config.dart';
+import 'package:http/http.dart' as http;
 import 'artikel_form_page.dart';
 
 class ArtikelManagementPage extends StatefulWidget {
@@ -16,6 +16,8 @@ class ArtikelManagementPage extends StatefulWidget {
 class _ArtikelManagementPageState extends State<ArtikelManagementPage> {
   List<ArtikelModel> _artikelList = [];
   bool _isLoading = true;
+  bool _isOffline = false;
+  String? _cacheAge;
   String? _errorMessage;
 
   @override
@@ -25,32 +27,80 @@ class _ArtikelManagementPageState extends State<ArtikelManagementPage> {
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final response = await http.get(
-        Uri.parse(ApiConfig.artikelUrl),
-      );
+      final online = await ArtikelService.hasInternet();
+      final artikelList = await ArtikelService.getAllArtikel();
+      final age = await ArtikelService.getCacheAge();
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['success'] == true) {
-          setState(() {
-            _artikelList = (data['data'] as List)
-                .map((json) => ArtikelModel.fromJson(json))
-                .toList();
-            _isLoading = false;
-          });
-        }
-      }
+      if (!mounted) return;
+      setState(() {
+        _artikelList = artikelList;
+        _isOffline = !online;
+        _cacheAge = age;
+        _isLoading = false;
+      });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = e.toString();
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _forceRefresh() async {
+    if (!mounted) return;
+
+    final online = await ArtikelService.hasInternet();
+    if (!online) {
+      if (mounted) {
+        setState(() => _isOffline = true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Tidak ada koneksi internet'),
+            backgroundColor: Color(0xFF00ADB5),
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final artikelList = await ArtikelService.refreshArtikel();
+      final age = await ArtikelService.getCacheAge();
+
+      if (!mounted) return;
+      setState(() {
+        _artikelList = artikelList;
+        _isOffline = false;
+        _cacheAge = age;
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Artikel berhasil diperbarui'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memperbarui: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -110,9 +160,27 @@ class _ArtikelManagementPageState extends State<ArtikelManagementPage> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final themeColor = Theme.of(context).colorScheme.primary;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Kelola Artikel'),
+        actions: [
+          if (_isOffline)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Icon(
+                Icons.cloud_off,
+                color: themeColor,
+                size: 20,
+              ),
+            ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Perbarui Artikel',
+            onPressed: _isLoading ? null : _forceRefresh,
+          ),
+        ],
       ),
       body: _buildBody(isDark),
       floatingActionButton: FloatingActionButton(
@@ -156,54 +224,80 @@ class _ArtikelManagementPageState extends State<ArtikelManagementPage> {
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadData,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(8),
-        itemCount: _artikelList.length,
-        itemBuilder: (context, index) {
-          final artikel = _artikelList[index];
-          return Card(
-            margin: const EdgeInsets.symmetric(vertical: 4),
-            child: ListTile(
-              title: Text(
-                artikel.judul,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w500,
+    return Column(
+      children: [
+        if (_cacheAge != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${_artikelList.length} artikel',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
-              ),
-              subtitle: Text(
-                '${artikel.kategori} • ${artikel.penulis}',
-                style: TextStyle(
-                    color: isDark ? Colors.grey : Colors.grey[600],
-                    fontSize: 12),
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.edit, color: Color(0xFF00ADB5)),
-                    onPressed: () async {
-                      final result = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              ArtikelFormPage(artikel: artikel),
-                        ),
-                      );
-                      if (result == true) _loadData();
-                    },
+                if (!_isOffline)
+                  Text(
+                    'Diperbarui: $_cacheAge',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => _deleteArtikel(artikel.id),
-                  ),
-                ],
-              ),
+              ],
             ),
-          );
-        },
-      ),
+          ),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _forceRefresh,
+            child: ListView.builder(
+              padding:
+                  const EdgeInsets.only(left: 8, right: 8, top: 8, bottom: 80),
+              itemCount: _artikelList.length,
+              itemBuilder: (context, index) {
+                final artikel = _artikelList[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  child: ListTile(
+                    title: Text(
+                      artikel.judul,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    subtitle: Text(
+                      '${artikel.kategori} • ${artikel.penulis}',
+                      style: TextStyle(
+                          color: isDark ? Colors.grey : Colors.grey[600],
+                          fontSize: 12),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon:
+                              const Icon(Icons.edit, color: Color(0xFF00ADB5)),
+                          onPressed: () async {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    ArtikelFormPage(artikel: artikel),
+                              ),
+                            );
+                            if (result == true) _loadData();
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => _deleteArtikel(artikel.id),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

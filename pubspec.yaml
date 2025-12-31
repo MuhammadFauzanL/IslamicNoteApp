@@ -19,6 +19,8 @@ dependencies:
   geolocator: ^13.0.2
   geocoding: ^3.0.0
   flutter_secure_storage: ^10.0.0
+  permission_handler: ^11.3.1
+  flutter_timezone: ^3.0.0
 
 fonts:
   - family: Arabic
@@ -30,6 +32,22 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_native_splash: ^2.3.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/logo.jpg"
+  min_sdk_android: 21
+
+flutter_native_splash:
+  color: "#ffffff"
+  image: assets/images/logo-splash.jpg
+  android_12:
+    color: "#ffffff"
+    icon_background_color: "#ffffff"
+    image: assets/images/logo-splash.jpg
 
 
 flutter:
@@ -38,3 +56,4 @@ flutter:
   
   assets:
    - assets/data/doa_dataset.json
+   - assets/images/

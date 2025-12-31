@@ -5,9 +5,17 @@ class ApiConfig {
 
   static String get baseUrl {
     if (kIsWeb) {
-      return 'http://localhost:4000';
+      return 'http://localhost:3000';
     }
-    return 'http://10.0.2.2:4000';
+    // -------------------------------------------------------------------------
+    // 🔴 PENTING: Pilih salah satu URL di bawah ini sesuai device Anda!
+    // -------------------------------------------------------------------------
+
+    // 1️⃣ Untuk EMULATOR Android (Gunakan ini jika testing di Laptop)
+    // return 'http://10.0.2.2:3000';
+
+    // 2️⃣ Untuk HP FISIK (Gunakan IP Laptop, pastikan Firewall Allow Node.js)
+    return 'http://192.168.1.12:3000';
   }
 
   static String get authUrl => '$baseUrl/api/auth';

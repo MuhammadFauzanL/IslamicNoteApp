@@ -21,6 +21,10 @@ class _ArtikelListPageState extends State<ArtikelListPage> {
   bool isLoading = true;
   String? errorMessage;
   bool isAdmin = false;
+  bool isOffline = false;
+  String? cacheAge;
+  String _favoriteKey =
+      'favoriteArtikels_guest'; // Will be updated with user ID
 
   @override
   void initState() {
@@ -56,18 +60,27 @@ class _ArtikelListPageState extends State<ArtikelListPage> {
     });
 
     try {
-      // Load favorites from local storage
+      // Load favorites from local storage (per user)
+      final user = await AuthService.getStoredUser();
+      final userId = user?.id.toString() ?? 'guest';
+      _favoriteKey = 'favoriteArtikels_user_$userId';
+
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      final favoriteIds = prefs.getStringList('favoriteArtikels') ?? [];
+      await prefs.reload(); // Force reload from disk
+      final favoriteIds = prefs.getStringList(_favoriteKey) ?? [];
       favoriteArtikels = favoriteIds.map((id) => int.tryParse(id) ?? 0).toSet();
 
-      // Fetch artikel from API
+      // Check internet and fetch artikel
+      final online = await ArtikelService.hasInternet();
       final artikelList = await ArtikelService.getAllArtikel();
+      final age = await ArtikelService.getCacheAge();
 
       if (!mounted) return;
       setState(() {
         allArtikel = artikelList;
         _updateFilteredArtikel('');
+        isOffline = !online;
+        cacheAge = age;
         isLoading = false;
       });
     } catch (e) {
@@ -79,7 +92,76 @@ class _ArtikelListPageState extends State<ArtikelListPage> {
     }
   }
 
+  Future<void> _forceRefresh() async {
+    if (!mounted) return;
+
+    final online = await ArtikelService.hasInternet();
+    if (!online) {
+      if (mounted) {
+        setState(() => isOffline = true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Tidak ada koneksi internet'),
+            backgroundColor: Color(0xFF00ADB5),
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => isLoading = true);
+
+    try {
+      // Reload favorites with current user context
+      final user = await AuthService.getStoredUser();
+      final userId = user?.id.toString() ?? 'guest';
+      _favoriteKey = 'favoriteArtikels_user_$userId';
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload(); // Force reload from disk
+      final favoriteIds = prefs.getStringList(_favoriteKey) ?? [];
+      favoriteArtikels = favoriteIds.map((id) => int.tryParse(id) ?? 0).toSet();
+
+      final artikelList = await ArtikelService.refreshArtikel();
+      final age = await ArtikelService.getCacheAge();
+
+      if (!mounted) return;
+      setState(() {
+        allArtikel = artikelList;
+        _updateFilteredArtikel(searchController.text);
+        isOffline = false;
+        cacheAge = age;
+        isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Artikel berhasil diperbarui'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => isLoading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memperbarui: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Future<void> _toggleFavorite(ArtikelModel artikel) async {
+    // Check if user is logged in
+    final user = await AuthService.getStoredUser();
+    if (user == null) {
+      // Show login dialog
+      _showLoginRequiredDialog();
+      return;
+    }
+
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       if (favoriteArtikels.contains(artikel.id)) {
@@ -87,10 +169,35 @@ class _ArtikelListPageState extends State<ArtikelListPage> {
       } else {
         favoriteArtikels.add(artikel.id);
       }
-      prefs.setStringList('favoriteArtikels',
-          favoriteArtikels.map((id) => id.toString()).toList());
+      // Save using user-specific key
+      prefs.setStringList(
+          _favoriteKey, favoriteArtikels.map((id) => id.toString()).toList());
       _updateFilteredArtikel(searchController.text);
     });
+  }
+
+  void _showLoginRequiredDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Login Diperlukan'),
+        content: const Text(
+            'Silakan login terlebih dahulu untuk menyimpan artikel favorit.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, '/login');
+            },
+            child: const Text('Login'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _updateFilteredArtikel(String query) {
@@ -127,6 +234,20 @@ class _ArtikelListPageState extends State<ArtikelListPage> {
         title: const Text('Daftar Artikel'),
         automaticallyImplyLeading: false,
         actions: [
+          if (isOffline)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Icon(
+                Icons.cloud_off,
+                color: Theme.of(context).colorScheme.primary,
+                size: 20,
+              ),
+            ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Perbarui Artikel',
+            onPressed: isLoading ? null : _forceRefresh,
+          ),
           if (isAdmin)
             IconButton(
               icon: const Icon(Icons.edit_note),
@@ -207,9 +328,28 @@ class _ArtikelListPageState extends State<ArtikelListPage> {
             onChanged: _filterArtikel,
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${filteredArtikel.length} artikel',
+                style: const TextStyle(
+                    fontSize: 12, color: Color.fromARGB(255, 73, 73, 73)),
+              ),
+              if (!isOffline && cacheAge != null)
+                Text(
+                  'Diperbarui: $cacheAge',
+                  style: const TextStyle(
+                      fontSize: 11, color: Color.fromARGB(255, 43, 43, 43)),
+                ),
+            ],
+          ),
+        ),
         Expanded(
           child: RefreshIndicator(
-            onRefresh: _loadData,
+            onRefresh: _forceRefresh,
             child: ListView.builder(
               itemCount: filteredArtikel.length,
               itemBuilder: (context, index) {
