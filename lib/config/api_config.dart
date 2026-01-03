@@ -7,15 +7,8 @@ class ApiConfig {
     if (kIsWeb) {
       return 'http://localhost:3000';
     }
-    // -------------------------------------------------------------------------
-    // 🔴 PENTING: Pilih salah satu URL di bawah ini sesuai device Anda!
-    // -------------------------------------------------------------------------
-
-    // 1️⃣ Untuk EMULATOR Android (Gunakan ini jika testing di Laptop)
-    // return 'http://10.0.2.2:3000';
-
-    // 2️⃣ Untuk HP FISIK (Gunakan IP Laptop, pastikan Firewall Allow Node.js)
-    return 'http://192.168.1.12:3000';
+    // Production URL (Railway)
+    return 'https://islamicnoteapp-production.up.railway.app';
   }
 
   static String get authUrl => '$baseUrl/api/auth';
