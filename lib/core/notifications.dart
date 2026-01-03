@@ -14,8 +14,21 @@ Future<bool> openNotificationSettings() async {
 
 Future<void> initializeNotifications() async {
   tz.initializeTimeZones();
-  final String timeZoneName = await FlutterTimezone.getLocalTimezone();
-  tz.setLocalLocation(tz.getLocation(timeZoneName));
+
+  // Get timezone with fallback
+  String timeZoneName = 'Asia/Jakarta'; // Default fallback
+  try {
+    timeZoneName = await FlutterTimezone.getLocalTimezone()
+        .timeout(const Duration(seconds: 3));
+  } catch (e) {
+    print('⚠️ Failed to get timezone, using default: $e');
+  }
+
+  try {
+    tz.setLocalLocation(tz.getLocation(timeZoneName));
+  } catch (e) {
+    tz.setLocalLocation(tz.getLocation('Asia/Jakarta'));
+  }
 
   const AndroidInitializationSettings initializationSettingsAndroid =
       AndroidInitializationSettings('ic_stat_masjid');

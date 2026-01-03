@@ -14,7 +14,20 @@ import 'pages/profile/profile_page.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   tz.initializeTimeZones();
-  await initializeNotifications(); // Use centralized notification initialization
+
+  // Initialize notifications with timeout and error handling
+  // to prevent app from hanging on splash screen
+  try {
+    await initializeNotifications().timeout(
+      const Duration(seconds: 5),
+      onTimeout: () {
+        print('⚠️ Notification init timeout, skipping...');
+      },
+    );
+  } catch (e) {
+    print('⚠️ Notification init error: $e');
+  }
+
   runApp(const IslamicNoteApp());
 }
 

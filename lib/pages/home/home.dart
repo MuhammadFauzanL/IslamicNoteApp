@@ -105,6 +105,7 @@ class _HomePageState extends State<HomePage> {
 
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.low,
+        timeLimit: const Duration(seconds: 10), // Prevent infinite hang
       );
 
       try {
